@@ -49,9 +49,12 @@ REPRODUCIBILIDAD
 - Finalmente los datos utilizados en el ejercicio se descargan directamente de Kaggle.
 
 RIESGOS Y SESGOS
-- Atajo en el dataset (el hallazgo más importante): las 1,308 reseñas positivas son todas de Sevilla; las de Granada, Córdoba, Málaga, Almería, Huelva y Jaén, y las 500 reseñas del corpus COAH, son 100% negativas. Un modelo que NO lee el texto (solo ciudad, fuente y largo) logra macro-F1 0.865 +- 0.005, y "sevilla", "catedral" y "centro" están entre los términos que más empujan hacia "positiva". Mi 0.95 mezcla comprensión del texto con la forma en que se armó el dataset. Dentro de Sevilla/TripAdvisor, leyendo solo el texto, el macro-F1 en validación cruzada es 0.939 ± 0.019: hay señal real, pero menor y más variable.
-- Otras limitaciones: contraste solo entre 1-2 y 5 estrellas; hoteles compartidos entre entrenamiento y prueba (no hice partición por hotel); español peninsular, sin evidencia de cómo generaliza a otras variantes.
-- Mitigación sin borrar identidades ni dialectos: no quité acentos ni normalicé la ortografía informal; no eliminé referencias a familia, nacionalidad o edad. En vez de borrarlas, las medí con predicciones fuera de pliegue (grupos por palabras clave, una aproximación): ortografía informal sin acentos (n=1,175) macro-F1 0.959 frente a 0.962 sin esa marca; familia con niños (n=198) 0.992; pareja (n=254) 0.962. Nacionalidad (n=26) y personas mayores (n=32) son demasiado pequeñas para concluir. Siguientes pasos: partición por hotel, controlar ciudad y fuente, y probar en otra variedad del español. Las reseñas también nombran a empleados: no muestro esos nombres.
+- Atajo en el dataset (este es el hallazgo más importante del ejercicio): las 1,308 reseñas positivas son todas de Sevilla; las de Granada, Córdoba, Málaga, Almería, Huelva y Jaén, y las 500 reseñas del corpus, son 100% negativas. Un modelo que NO lee el texto (solo ciudad, fuente y largo) logra macro-F1 0.865 +- 0.005, y "sevilla", "catedral" y "centro" están entre los términos que más empujan hacia "positiva". El 0.95 que se obtiene como resultado del ejercicio mezcla comprensión del texto con la forma en que se armó el dataset.
+- Mitigación de posibles riesgos y sesgos sin borrar identidades ni dialectos: durante el desarrollo del ejercicio no quité acentos ni normalicé la ortografía informal; no eliminé referencias a familia, nacionalidad o edad.  
 
 USO DE IA
-Usé Claude Code como asistente para la auditoría, el código del notebook y la búsqueda de dataset y licencias.
+Usé Claude Code como asistente para la auditoría y para aspectos relacionados a la generación, mantenimiento y reproductibilidad del código de este ejercicio.
+
+NOTA PIE DE PAGINA
+- Durante este post se mencionó en varias oportunidades la macro-F1 cuando uso esta palabra me refiero a la metrica que clasifica cada clase por separadodándole el mismo peso a las dos. Es la métrica principal del ejercicio puesto que hablamos de un modelo de clasificación binaria. 
+- Finalmente para acceder a los resultados del ejercicio todo el codigo se encuentra cargado en Github y se puede acceder a este mediante el siguiente enlace: https://github.com/jusero1/Foro-1-Decisiones-de-preprocesamiento-responsables---NPL

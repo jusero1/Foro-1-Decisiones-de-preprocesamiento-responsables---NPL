@@ -1,0 +1,57 @@
+Reseñas de hoteles en español: decisiones de preprocesamiento 
+
+TAREA Y DOMINIO
+Para este ejercicio intenté construir el preprocesamiento de un modelo de clasificación binaria de sentimiento basado en las reseñas de hoteles de Andalucía, escritas en español peninsular en TripAdvisor. Dataset: "Andalusian Hotels' Reviews" (M. Chizhikova, Kaggle), versión balanceada. Licencia CC BY-NC 4.0 (uso no comercial, con atribución). Parte del texto proviene del corpus COAH (Molina-González et al., 2014). En este ejercicio presento un baseline TF-IDF + regresión logística, no un modelo final.
+
+ANTES DE PREPROCESA REALIZO LA PRIMERA AUDITORÍA A MANERA DESCRIPTIVA DEL CONJUNTO DE DATOS
+- El archivo trae 7,615 filas, pero 2,514 son copias exactas de otra reseña. Sin quitarlas, el 57.0% del conjunto de prueba ya estaba en entrenamiento por lo que deduplico antes de dividir la base de datos.
+- Descarté las calificaciones neutrales (3 estrellas). Por lo que quedan 3,361 reseñas: 61.1% negativas y 38.9% positivas. Por lo cual el dataset "balanceado" deja de serlo. Posteriormente procedo con una partición estratificada 80/20 (2,688 entrenamiento / 673 prueba) del conjunto de datos.
+- En esta versión solo existen las valoraciones 1, 2, 3 y 5 puesto que la tarea del modelo será comparar extremos.
+
+DECISIONES DE PREPROCESAMIENTO DEL EJERCICIO
+1) Unicode, acentos y mayúsculas
+- Codificación: UTF-8 sin errores (0 caracteres de reemplazo, 0 patrones de mojibake).
+- Forma: NFC. El corpus ya está en NFC, así que no cambia ningún texto. NFKC cambia el 17.0% de los textos (sobre todo "…" y º/ª) y convierte ´ y ¨ sueltos en marcas combinantes huérfanas.
+- Acentos: los conservo. Quitarlos bajaría el vocabulario de 18,478 a 17,393 formas y uniría "habitación" (2,049) con "habitacion" (273), pero fusiona 1,039 grupos, incluidos "sí/si", "más/mas" y "él/el". En validación cruzada el resultado fue igual con y sin acentos (macro-F1 0.962).
+- Mayúsculas: minúsculas. El vocabulario baja de 20,988 a 18,478 formas, y las mayúsculas sostenidas son raras (solo el 0.24% de los textos negativos supera el 30% de mayúsculas), así que perder ese énfasis cuesta poco aquí.
+
+2) Respecto al manejo de Emojis, hashtags, URLs y números
+- Emojis (34 reseñas, 1.0%): los traduzco a texto en español, por ejemplo emoji_pulgar_hacia_abajo.
+- Hashtags: 0 casos. La regla existe pero no aplica a este corpus (en tweets sí importaría). URLs: 1 caso, y viene roto por espacios internos, así que mi regla solo captura "http://www.".
+- "@s" (viajer@s, chic@s) es español inclusivo, no una mención de usuario: lo dejo intacto.
+- Números: el 58.1% de las reseñas negativas contiene dígitos frente al 33.0% de las positivas (precios y horas aparecen casi solo en quejas). No los borro: los convierto en marcadores num_precio, num_hora, num_estrellas, num_ordinal y num.
+
+3) Stopwords
+Lista de spaCy (521 palabras) curada: devolví 29 al texto (no, nunca, ni, sin, muy, más, pero, bien, mal, mejor, peor, tampoco...). Ejemplo ilustrativo con una frase inventada: "el hotel no está bien, pero la ubicación es muy buena y nunca esperé tanto" queda como [hotel, ubicación, esperé] con la lista completa, y como [hotel, no, bien, pero, ubicación, muy, nunca, esperé, tanto] con la curada. "mal" aparece 1.89 veces por cada mil tokens en reseñas negativas frente a 0.09 en las positivas.
+
+4) Stemming o lematización: ninguna
+Snowball reduce el vocabulario de 18,121 a 9,009 formas en 0.1 s, pero genera raíces que no son palabras (habit, limpi). spaCy lo reduce a 12,540 en ~13 s, suma 59 MB al cargar el modelo y se equivoca (recomiendo -> "recomeir"). En validación cruzada las variantes dieron 0.962 (sin nada), 0.964 (lematización) y 0.966 (stemming): diferencias menores que la desviación entre pliegues (~0.008). Sin ganancia medible, no pago el costo.
+
+5) Tokenización: palabra
+Regex \w+ sobre el texto limpio. Vocabulario de entrenamiento: 16,018 palabras, el 52.6% aparece una sola vez; el 3.68% de los tokens de prueba es OOV. Un BPE Byte Pair Encoding (codificación por pares de bytes) propio de 4,000 (entrenado solo con entrenamiento) deja 0.04% como [UNK] desconocido (unknown), con 1.16 tokens por palabra, y parte bien errores como "habtiaciones". Pero el macro-F1 en validación cruzada es casi igual (0.964 palabra, 0.965 BPE) y las palabras son más fáciles de interpretar. TF-IDF con unigramas y bigramas (min_df=2): 16,984 características.
+
+EVIDENCIA ANTES / DESPUÉS (salida real del notebook)
+ANTES:   Sin duda recomendable al 100%, experiencia única 🥰🥰
+DESPUÉS: sin duda recomendable al num %, experiencia única emoji_cara_sonriendo_con_corazones emoji_cara_sonriendo_con_corazones
+
+ANTES:   ...la hora de entrada es a las 16:00 y la salida a las 11:00...
+DESPUÉS: ...la hora de entrada es a las num_hora y la salida a las num_hora...
+
+Una de las limitación visible en el metodo de preprocesamiento fue que por ejemplo un "100%" queda como "num %".
+
+RESULTADOS 
+Utilizando los datos de prueba y evaluado una sola vez el resultado que obtuve fue macro-F1 0.952 y exactitud 0.954 con la configuración y decisiones que he explicado en este post.
+
+REPRODUCIBILIDAD
+- Semilla 42 (partición, validación cruzada, regresión logística). 
+- Python 3.14.4, pandas 3.1.1, numpy 2.5.4, scikit-learn 1.9.1, spaCy 3.8.18 con es_core_news_sm 3.8.0 (licencia GPL-3.0), emoji 2.16.0, tokenizers 0.23.3, nltk 3.10.4. SHA-256 del CSV: 6d3abc198db111d2a40d738a97070535d3afc02a7d16a7e55cbe637d610529be. 
+- Adicionalmente las versiones se encuentrán fijadas en requirements.txt y cada experimento registrado en experiments.jsonl 
+- Finalmente los datos utilizados en el ejercicio se descargan directamente de Kaggle.
+
+RIESGOS Y SESGOS
+- Atajo en el dataset (el hallazgo más importante): las 1,308 reseñas positivas son todas de Sevilla; las de Granada, Córdoba, Málaga, Almería, Huelva y Jaén, y las 500 reseñas del corpus COAH, son 100% negativas. Un modelo que NO lee el texto (solo ciudad, fuente y largo) logra macro-F1 0.865 +- 0.005, y "sevilla", "catedral" y "centro" están entre los términos que más empujan hacia "positiva". Mi 0.95 mezcla comprensión del texto con la forma en que se armó el dataset. Dentro de Sevilla/TripAdvisor, leyendo solo el texto, el macro-F1 en validación cruzada es 0.939 ± 0.019: hay señal real, pero menor y más variable.
+- Otras limitaciones: contraste solo entre 1-2 y 5 estrellas; hoteles compartidos entre entrenamiento y prueba (no hice partición por hotel); español peninsular, sin evidencia de cómo generaliza a otras variantes.
+- Mitigación sin borrar identidades ni dialectos: no quité acentos ni normalicé la ortografía informal; no eliminé referencias a familia, nacionalidad o edad. En vez de borrarlas, las medí con predicciones fuera de pliegue (grupos por palabras clave, una aproximación): ortografía informal sin acentos (n=1,175) macro-F1 0.959 frente a 0.962 sin esa marca; familia con niños (n=198) 0.992; pareja (n=254) 0.962. Nacionalidad (n=26) y personas mayores (n=32) son demasiado pequeñas para concluir. Siguientes pasos: partición por hotel, controlar ciudad y fuente, y probar en otra variedad del español. Las reseñas también nombran a empleados: no muestro esos nombres.
+
+USO DE IA
+Usé Claude Code como asistente para la auditoría, el código del notebook y la búsqueda de dataset y licencias.
